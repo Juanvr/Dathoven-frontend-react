@@ -23,8 +23,9 @@ function App() {
   const [context, setContext] = React.useState(null);
 
   const [mouseDown, setMouseDown] = React.useState(false);
-  const [lastDragTile, setLastDragTile] = React.useState({});
 
+  const [previousGridPosition, setPreviousGridPosition] = React.useState({});
+  const [previousTile, setPreviousTile] = React.useState({});
 
   const [start, setStart] = React.useState({ x: 0, y: 0 });
   const [end, setEnd] = React.useState({ x: 0, y: 0 });
@@ -53,13 +54,13 @@ function App() {
 
 		setTileWidth(width / config.gridWidth);
 		setTileHeight(height / config.gridHeight);
-		drawLines();
+		drawGridLinesOnCanvas();
   }
 
 
-	function drawLines() {
-		let gridWidth = config.gridWidth;
-		let gridHeight = config.gridHeight;
+	function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
+		// let gridWidth = config.gridWidth;
+		// let gridHeight = config.gridHeight;
     if (bgContext){
       bgContext.strokeStyle = 'rgba(22, 168, 240, 0.4)';
       bgContext.lineWidth = 1;
@@ -88,41 +89,135 @@ function App() {
 
   function handleMouseDown(e) {
     
+    let newTiles = [...tiles];
+    let newTilesToDelete = [...tilesToDelete];
+
+    let gridCoordinatesOfCurrentTile = gridPositionFromCoordinates(e.clientX, e.clientY);
+
+    let newTile = {
+      x: gridCoordinatesOfCurrentTile.x,
+      y: gridCoordinatesOfCurrentTile.y,
+      size: 1,
+      color: 'blue'
+    };
+
+    let overlappingExistingTile = 
+      newTiles.find( tile => overlappedTiles(newTile, tile));
+
     // console.log(e.clientX, e.clientY);
-    setMouseDown(true);
+
     console.log('mouse down');
 
+    if (overlappingExistingTile){
+      // add to Tiles to Remove
+      newTilesToDelete = newTilesToDelete.concat(overlappingExistingTile);
 
-		addOrRemoveTile(e.clientX, e.clientY);
+      // remove from Tiles
+      newTiles = newTiles.filter( tile => !(tile.x === overlappingExistingTile.x && tile.y === overlappingExistingTile.y));
+    } else {
 
-  }
+      let tileInSameColumn = newTiles.find( tile => sameColumnTiles(newTile, tile));
 
-  function handleMouseUp(evt) {
-    setMouseDown(false);
-  }
-
-  function handleMouseMove(evt) {
-
-    if (mouseDown && context) {
-
-      let tileToDraw = gridPositionFromCoordinates(evt.clientX, evt.clientY);
-
-      if ( lastDragTile.x - tileToDraw.x === -1 || lastDragTile.x - tileToDraw.x === -1 || lastDragTile.y === tileToDraw.y){
-        
-        joinTiles(lastDragTile, tileToDraw);
-
+      if (tileInSameColumn){
+        // add to Tiles to Remove
+        newTilesToDelete = newTilesToDelete.concat(tileInSameColumn);
+  
+        // remove from Tiles
+        newTiles = newTiles.filter( tile => !(tile.x === tileInSameColumn.x && tile.y === tileInSameColumn.y));
       }
+  
+      newTiles = newTiles.concat(newTile);
+      setPreviousTile(newTile);
+
+    }
+
+    setPreviousGridPosition(gridCoordinatesOfCurrentTile);
+    setTiles(newTiles);
+    setTilesToDelete(newTilesToDelete);
+    setMouseDown(true);
+  }
+
+  function handleMouseUp(e) {
+    setMouseDown(false);
+    setPreviousTile({});
+    setPreviousGridPosition({});
+  }
+
+  function handleMouseMove(e) {
+    if (!mouseDown || !context){
+      return;
+    }
+    let gridCoordinatesOfCurrentTile = gridPositionFromCoordinates(e.clientX, e.clientY);
+
+    let newTiles = [...tiles];
+    let newTilesToDelete = [...tilesToDelete];
+
+    if (adjacentTiles(gridCoordinatesOfCurrentTile, previousGridPosition)){
+
+      let newTilePosition = {
+        x: gridCoordinatesOfCurrentTile.x,
+        y: gridCoordinatesOfCurrentTile.y,
+        size: 1,
+        color: 'blue'
+      };
+  
+      let tileInSameColumn = newTiles.find( tile => sameColumnTiles(tile, newTilePosition));
+
+      if (tileInSameColumn){
+        // add to Tiles to Remove
+        newTilesToDelete = newTilesToDelete.concat(tileInSameColumn);
+  
+        // remove from Tiles
+        newTiles = newTiles.filter( tile => !(tile.x === tileInSameColumn.x && tile.y === tileInSameColumn.y));
+      }        
+      
+      newTilesToDelete = newTilesToDelete.concat(previousTile);
+      newTiles = newTiles.filter( tile => !(tile.x === previousTile.x && tile.y === previousTile.y));
+
+      let growing = 1;
+      if (gridCoordinatesOfCurrentTile.x >= previousTile.x && gridCoordinatesOfCurrentTile.x < previousTile.x + previousTile.size){
+        growing = -1;
+      }
+ 
+      let newTile = {
+        x: Math.min(gridCoordinatesOfCurrentTile.x, previousTile.x),
+        y: gridCoordinatesOfCurrentTile.y,
+        size: previousTile.size + growing,
+        color: 'blue'
+      };
+      
+      newTiles = newTiles.concat(newTile);
+  
+      setTiles(newTiles);
+      setTilesToDelete(newTilesToDelete);
+      setPreviousTile(newTile);
+      setPreviousGridPosition(gridCoordinatesOfCurrentTile);
     }
   }
 
-  function joinTiles(tile1, tile2){
-    let newTiles = removeTile(context, tile1.x, tile1.y, tileWidth, tileHeight, tiles);
+  function adjacentTiles( tile1, tile2){
 
-    let newTile = { x: Math.min(tile1.x, tile1.x), y:tile1.y, length:}
+    let adjacentColumn = tile1.x - tile2.x === -1 || tile1.x - tile2.x === 1;
+    let sameRow = tile1.y === tile2.y;
 
-    setLastDragTile(newTile);
+    return sameRow && adjacentColumn;
+  }
 
+  function overlappedTiles( tile1, tile2 ){
+    let sameColumn = sameColumnTiles(tile1, tile2);
 
+    let sameRow = tile1.y === tile2.y;
+
+    return sameRow && sameColumn;
+  }
+
+  function sameColumnTiles( tile1, tile2){
+
+    let overlappedX = 
+    (tile1.x <= tile2.x && tile1.x + tile1.size > tile2.x) || 
+    (tile2.x <= tile1.x && tile2.x + tile2.size > tile1.x);
+
+    return overlappedX;
   }
 
   function randomColor() {
@@ -148,73 +243,63 @@ function App() {
     }
   }
 
-  function drawTile(context, x, y, tileSize, tileWidth, tileHeight, color){
-    let margin = config.tileMargin;
-    context.fillStyle = color;
+  function drawTileOnCanvas(context, tile, gridConfig){
+    context.fillStyle = tile.color;
     context.beginPath();
-    context.fillRect(x * tileWidth  * tileSize + margin, y * tileHeight + margin, tileWidth - margin * 2, tileHeight - margin * 2);
+
+    let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
+    let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin;
+    let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2;
+    let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2;
+
+    console.log('fillRect', {
+      rectX, rectY, rectWidth, rectHeight
+    });
+    context.fillRect(
+      rectX, 
+      rectY, 
+      rectWidth, 
+      rectHeight
+      );
   }
 
-  function drawTiles(){
+  function drawTilesOnCanvas(context, tiles, gridConfig){
     console.log('drawing', tiles.length, 'tiles')
 		for (let i = 0; i < tiles.length; i++) {
 			let tile = tiles[i];
 			if (tile) {
-				drawTile(context, tile.x, tile.y, tile.size, tileWidth, tileHeight, 'blue');
+				drawTileOnCanvas(context, tile, gridConfig);
 			}
 		}
 	};
 
-  function deleteTile(tile){
-    let margin = config.tileMargin;
-    context.clearRect(tile.x * tileWidth * tile.length + margin, tile.y * tileHeight + margin, tileWidth - margin * 2, tileHeight - margin * 2);
+  function deleteTileOnCanvas(context, tile, gridConfig){
+
+    let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
+    let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin;
+    let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2;
+    let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2;
+
+    console.log('clearRect', {
+      rectX, rectY, rectWidth, rectHeight
+    });
+    context.clearRect(
+      rectX, 
+      rectY, 
+      rectWidth, 
+      rectHeight
+      );
   }
 
-  function deleteTiles(){
-    for (let i = 0; i < tilesToRemove.length; i++) {
+  function deleteTilesOnCanvas(context, tilesToRemove, gridConfig){
+    console.log('deleting', tilesToRemove.length, 'tiles')
+		for (let i = 0; i < tilesToRemove.length; i++) {
 			let tile = tilesToRemove[i];
 			if (tile) {
-				deleteTile(tile);
+				deleteTileOnCanvas(context, tile, gridConfig);
 			}
 		}
   }
-
-  function removeTile(context, x, y, tileWidth, tileHeight, tiles) {
-    let newTiles = tiles.filter( tile => tile.x !== x && tile.y !== y);
-    return newTiles;
-	};
-
-  function addOrRemoveTile(clientX, clientY) {
-
-    let newTile = gridPositionFromCoordinates(clientX, clientY);
-
-    let x = newTile.x;
-    let y = newTile.y;
-
-    let alreadyExistingTile = tiles.find( tile => tile.x === x && tile.y === y);
-    
-    let newTiles = [...tiles];
-    if (alreadyExistingTile){
-      newTiles = removeTile(context, x, y, tileWidth, tileHeight, tiles);
-      
-    } else{
-
-      setLastDragTile(newTile);
-
-      let existingTileInSameColumn = tiles.find( tile => tile.x === x);
-
-      if (existingTileInSameColumn){
-        newTiles = removeTile(context, x, existingTileInSameColumn.y, tileWidth, tileHeight, tiles);
-      }
-      newTiles = newTiles.concat(newTile)
-
-    }
-
-    setTiles(newTiles);
-	};
-
-
-
 
   function draw(){
     // requestAnimationFrame(this._boundDraw);
@@ -226,7 +311,7 @@ function App() {
         highlightActiveColumn();
         // this._drawAI();
 
-        drawTiles();
+        drawTilesOnCanvas();
 
         // TWEEN.update();
 
@@ -265,18 +350,32 @@ function App() {
         // setHeight(canvasRef.current.offsetHeight * 2);
         
         // resize();
-        setTileWidth(width / config.gridWidth);
-        setTileHeight(height / config.gridHeight);
+        setTileWidth(Math.floor(width / config.gridWidth));
+        setTileHeight(Math.floor(height / config.gridHeight));
 
         
-        // drawLines();
+        drawGridLinesOnCanvas(bgRenderCtx, config.gridWidth, config.gridHeight, tileWidth, tileHeight);
+
         
+      let gridConfig = {
+        tileWidth: tileWidth,
+        tileHeight: tileHeight,
+        margin: config.tileMargin
+      }
 
 
+      if (context){
+        deleteTilesOnCanvas(context, tilesToDelete, gridConfig);
+
+        setTilesToDelete([]);
+  
+        drawTilesOnCanvas(context, tiles, gridConfig);
+
+      }
 
         console.log('fill')
 
-        draw();
+        //draw();
         
       }
     }
