@@ -1,10 +1,19 @@
 import * as React from 'react';
+import * as Tone from 'tone';
 //import Grid from './components/Grid'
 //import Canvas from './components/Canvas'
 import Tile from './utils/Tile'
+import * as Notes from './utils/Notes'
 
 
 function App() {
+
+  // Synth with Tone js
+  const synth = new Tone.Synth().toDestination();
+
+  function playNote(note) {
+    synth.triggerAttackRelease(`${note}`, "8n");
+  }
 
   const config = {
     gridWidth: 15, 
@@ -27,9 +36,6 @@ function App() {
   const [previousGridPosition, setPreviousGridPosition] = React.useState({});
   const [previousTile, setPreviousTile] = React.useState({});
 
-  const [start, setStart] = React.useState({ x: 0, y: 0 });
-  const [end, setEnd] = React.useState({ x: 0, y: 0 });
-
   const [canvasOffsetLeft, setOffsetLeft] = React.useState(0);
   const [canvasOffsetTop, setOffsetTop] = React.useState(0);
 
@@ -47,6 +53,8 @@ function App() {
 
   const[activeColumn, setActiveColumn] = React.useState(1);
 
+  const[notes, setNotes] = React.useState([]);
+
 
   function resize(){
 		// setWidth(canvasRef.current.offsetWidth * 2);
@@ -62,7 +70,7 @@ function App() {
 		// let gridWidth = config.gridWidth;
 		// let gridHeight = config.gridHeight;
     if (bgContext){
-      bgContext.strokeStyle = 'rgba(22, 168, 240, 0.4)';
+      bgContext.strokeStyle = 'rgba(22, 168, 240, 1)';
       bgContext.lineWidth = 1;
       console.log(tileWidth);
       for (var x = 0; x < gridWidth; x++) {
@@ -130,6 +138,8 @@ function App() {
       setPreviousTile(newTile);
 
     }
+
+    playNote(notes[newTile.y]);
 
     setPreviousGridPosition(gridCoordinatesOfCurrentTile);
     setTiles(newTiles);
@@ -238,7 +248,8 @@ function App() {
 
   function highlightActiveColumn(){
     if (activeColumn !== -1) {
-      context.fillStyle = 'rgba(22, 168, 240, .08)';
+      // context.fillStyle = 'rgba(22, 168, 240, .08)';
+      context.fillStyle = 'rgba(255, 255, 102, .3)';
       context.fillRect(activeColumn * tileWidth, 0, tileWidth, height);
     }
   }
@@ -324,6 +335,24 @@ function App() {
       }
 
   };
+  function calculateNotesOnGrid(gridHeight, noteStepLength, middleNote){ 
+    
+    let notes = [middleNote];
+    let initialNumber = Notes.getNumberFromNote(middleNote);
+    console.log(gridHeight);
+    console.log(noteStepLength);
+    for (let i = 1; i <= gridHeight / 2; i+=noteStepLength){
+      console.log(i);
+      notes.unshift( Notes.getNoteFromNumber(initialNumber + i));
+      notes.push( Notes.getNoteFromNumber(initialNumber - i));
+    }
+    if (notes.length > gridHeight){
+      notes.pop();
+    }
+
+    return notes;
+
+  };
 
 
   React.useEffect(() => {
@@ -356,6 +385,10 @@ function App() {
         
         drawGridLinesOnCanvas(bgRenderCtx, config.gridWidth, config.gridHeight, tileWidth, tileHeight);
 
+        let notes = calculateNotesOnGrid(config.gridHeight, 1, 'C4');
+
+        setNotes(notes);
+
         
       let gridConfig = {
         tileWidth: tileWidth,
@@ -371,6 +404,7 @@ function App() {
   
         drawTilesOnCanvas(context, tiles, gridConfig);
 
+        // highlightActiveColumn();
       }
 
         console.log('fill')
@@ -418,7 +452,7 @@ function App() {
           width={width}
           height={height}
           style={{
-            border: '2px solid #000',
+            // border: '2px solid #000',
             marginTop: 10,
           }}
         ></canvas>
@@ -428,7 +462,7 @@ function App() {
           width={width}
           height={height}
           style={{
-            border: '2px solid #000',
+            // border: '2px solid #000',
             marginTop: 10,
           }}
           onMouseDown = {handleMouseDown}
