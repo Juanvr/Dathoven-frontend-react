@@ -5,20 +5,20 @@ import Pause from './Pause'
 
 class Player extends Component {
 
-constructor(props) {
-  super(props)
-  this.state = {
-    playing: false
+  constructor(props) {
+    super(props)
+    this.state = {
+      playing: false
+    }
   }
-}
 
-handlePlayerClick = () => {
-  if (!this.state.playing) {
-    this.setState({playing: true})
-  } else {
-    this.setState({playing: false})
+  handlePlayerClick = () => {
+    if (!this.state.playing) {
+      this.setState({playing: true})
+    } else {
+      this.setState({playing: false})
+    }
   }
-}
 
   render() {
     return (

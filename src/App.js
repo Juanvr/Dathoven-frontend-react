@@ -16,7 +16,7 @@ function App() {
     
     var song = [
       { time: 0,      note: "C3",   duration: "1m",      velocity: 0.5 },
-      { time: "0:2",  note: "C4",   duration: "16n",      velocity: 0.5 },
+      { time: "0:2",  note: "C4",   duration: "16n",     velocity: 0.5 },
       { time: "0:4",  note: "C4",   duration: "8n",      velocity: 0.5 },
     ];
 
@@ -57,9 +57,9 @@ function App() {
   }
 
   const config = {
-    gridWidth: 15, 
+    gridWidth: 30, 
     gridHeight: 20,
-    tileMargin: 1
+    tileMargin: 0.5
   };
 
   const bgCanvasRef = React.useRef(null);
@@ -97,35 +97,33 @@ function App() {
   const[notes, setNotes] = React.useState([]);
 
 
-  function resize(){
-		// setWidth(canvasRef.current.offsetWidth * 2);
-		// setHeight(canvasRef.current.offsetHeight * 2);
-
-		setTileWidth(width / config.gridWidth);
-		setTileHeight(height / config.gridHeight);
-		drawGridLinesOnCanvas();
-  }
-
-
-	function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
-		// let gridWidth = config.gridWidth;
-		// let gridHeight = config.gridHeight;
+  function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
     if (bgContext){
-      bgContext.strokeStyle = 'rgba(22, 168, 240, 1)';
+      bgContext.translate(0.5, 0.5);
+      console.log('drawlines',gridWidth, gridHeight, tileWidth, tileHeight)
+      bgContext.strokeStyle = '#000000';
       bgContext.lineWidth = 1;
       console.log(tileWidth);
+
+      bgContext.beginPath();
+
       for (var x = 0; x < gridWidth; x++) {
-        for (var y = 0; y < gridHeight; y++) {
-          //draw tile with border
-          bgContext.beginPath();
-          bgContext.strokeRect(
-            x * tileWidth, 
-            y * tileHeight, 
-            tileWidth, 
-            tileHeight
-          );
-        }
+        bgContext.lineWidth = 1;
+        bgContext.moveTo(Math.floor(x*tileWidth), 0);
+        bgContext.lineTo(Math.floor(x*tileWidth), gridHeight*tileHeight);
       }
+      bgContext.moveTo(Math.floor(gridWidth*tileWidth)-1, 0);
+      bgContext.lineTo(Math.floor(gridWidth*tileWidth)-1, gridHeight*tileHeight);
+
+      for (var y = 0; y < gridHeight; y++) {
+        bgContext.lineWidth = 1;
+        bgContext.moveTo(0, Math.floor(y*tileHeight));
+        bgContext.lineTo(gridWidth*tileWidth, Math.floor(y*tileHeight));        
+      }
+      bgContext.moveTo(0, Math.floor(gridHeight*tileHeight)-1);
+      bgContext.lineTo(gridWidth*tileWidth, Math.floor(y*tileHeight)-1);  
+
+      bgContext.stroke();
     }
 	};
 
@@ -296,6 +294,8 @@ function App() {
   }
 
   function drawTileOnCanvas(context, tile, gridConfig){
+    // bgContext.translate(0.5, 0.5);
+
     context.fillStyle = tile.color;
     context.beginPath();
 
@@ -331,6 +331,12 @@ function App() {
     let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin;
     let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2;
     let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2;
+
+    // We make sure we do not leave any painted pixels due to rounding
+    rectX -= gridConfig.margin;
+    rectY -= gridConfig.margin;
+    rectWidth += gridConfig.margin*2;
+    rectHeight += gridConfig.margin*2;
 
     console.log('clearRect', {
       rectX, rectY, rectWidth, rectHeight
@@ -395,6 +401,14 @@ function App() {
 
   };
 
+  React.useEffect(() => {
+    const bgRenderCtx = bgCanvasRef.current.getContext('2d');
+    if (bgRenderCtx) {
+      drawGridLinesOnCanvas(bgRenderCtx, config.gridWidth, config.gridHeight, tileWidth, tileHeight);
+    }
+
+  }, [tileWidth]);
+
 
   React.useEffect(() => {
     console.log('useEffect');
@@ -420,11 +434,14 @@ function App() {
         // setHeight(canvasRef.current.offsetHeight * 2);
         
         // resize();
-        setTileWidth(Math.floor(width / config.gridWidth));
-        setTileHeight(Math.floor(height / config.gridHeight));
+        // setTileWidth(Math.floor(width / config.gridWidth));
+        // setTileHeight(Math.floor(height / config.gridHeight));
+
+        setTileWidth(Math.round(width / config.gridWidth * 100) / 100);
+        setTileHeight(Math.round(height / config.gridHeight* 100) / 100);
 
         
-        drawGridLinesOnCanvas(bgRenderCtx, config.gridWidth, config.gridHeight, tileWidth, tileHeight);
+
 
         let notes = calculateNotesOnGrid(config.gridHeight, 1, 'C4');
 
@@ -493,7 +510,7 @@ function App() {
           height={height}
           style={{
             // border: '2px solid #000',
-            marginTop: 10,
+            // marginTop: 10,
           }}
         ></canvas>
         <canvas
@@ -503,14 +520,14 @@ function App() {
           height={height}
           style={{
             // border: '2px solid #000',
-            marginTop: 10,
+            // marginTop: 10,
           }}
           onMouseDown = {handleMouseDown}
           onMouseUp = {handleMouseUp}
           onMouseMove = {handleMouseMove}
         ></canvas>
       </div>
-      <Player></Player>
+      <Player ></Player>
 
       
     </div>
