@@ -4,15 +4,56 @@ import * as Tone from 'tone';
 //import Canvas from './components/Canvas'
 import Tile from './utils/Tile'
 import * as Notes from './utils/Notes'
+import Player from './components/Player'
 
 
 function App() {
 
-  // Synth with Tone js
-  const synth = new Tone.Synth().toDestination();
+  Tone.Transport.start();
+
+  function playSong(){
+    const synth = new Tone.Synth().toDestination();
+    
+    var song = [
+      { time: 0,      note: "C3",   duration: "1m",      velocity: 0.5 },
+      { time: "0:2",  note: "C4",   duration: "16n",      velocity: 0.5 },
+      { time: "0:4",  note: "C4",   duration: "8n",      velocity: 0.5 },
+    ];
+
+    function partCallback(time, value){
+      synth.triggerAttackRelease(value.note, value.duration, time, value.velocity);
+    }
+    const part = new Tone.Part(partCallback, song);
+
+    part.start();
+
+  }
 
   function playNote(note) {
-    synth.triggerAttackRelease(`${note}`, "8n");
+
+    console.log('playNote');
+      // Synth with Tone js
+    const synth = new Tone.Synth().toDestination();
+
+    synth.triggerAttackRelease(`${note}`, '8n');
+  }
+
+  function fromTileListSong(tiles, notes, tempo){
+
+    let tonePartElements = [];
+    for (let i = 0; i < tiles.length; i++){
+      let tile = tiles[i];
+      let note = notes[tile.y]
+      let noteLenght = tile.size;
+      tonePartElements.push([])
+    }
+
+    // const part = new Tone.Part(((time, note) => {
+    //   // the notes given as the second element in the array
+    //   // will be passed in as the second argument
+    //   synth.triggerAttackRelease(note, '8n', time);
+    // }), [[0, 'C2'], ['0:2', 'C3'], ['0:3:2', 'G2']]).start(0);
+
   }
 
   const config = {
@@ -440,14 +481,13 @@ function App() {
   }, [bgContext, tiles]);
 
   return (
-    <div className="App">
-      
-      <div
+    <div className='App'>
+      <div id='canvasDiv'
         style={{
           textAlign: 'center',
         }}>
         <canvas
-          id="background-canvas"
+          id='background-canvas'
           ref={bgCanvasRef}
           width={width}
           height={height}
@@ -457,7 +497,7 @@ function App() {
           }}
         ></canvas>
         <canvas
-          id="canvas"
+          id='canvas'
           ref={canvasRef}
           width={width}
           height={height}
@@ -470,6 +510,9 @@ function App() {
           onMouseMove = {handleMouseMove}
         ></canvas>
       </div>
+      <Player></Player>
+
+      
     </div>
   );
 }
