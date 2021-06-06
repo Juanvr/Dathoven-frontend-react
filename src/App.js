@@ -7,6 +7,7 @@ import Pause from './components/Pause'
 import Slider from './components/Slider'
 
 import FrontCanvas from './components/FrontCanvas'
+import BackCanvas from './components/BackCanvas'
 
 let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   'volume' : -4,
@@ -156,38 +157,6 @@ function App() {
 
   const[tempo, setTempo] = React.useState(120);
  
-
-  function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
-    
-    let lineWidth = 1;
-    if (bgContext){
-      bgContext.translate(0.5, 0.5);
-      console.log('drawlines',gridWidth, gridHeight, tileWidth, tileHeight)
-      bgContext.strokeStyle = 'rgba(22, 168, 240, 0.9)';
-      console.log(tileWidth);
-
-      bgContext.beginPath();
-
-      for (var x = 0; x < gridWidth; x++) {
-        bgContext.lineWidth = lineWidth;
-        bgContext.moveTo(Math.floor(x*tileWidth), 0);
-        bgContext.lineTo(Math.floor(x*tileWidth), gridHeight*tileHeight);
-      }
-      bgContext.moveTo(Math.floor(gridWidth*tileWidth)-1, 0);
-      bgContext.lineTo(Math.floor(gridWidth*tileWidth)-1, gridHeight*tileHeight);
-
-      for (var y = 0; y < gridHeight; y++) {
-        bgContext.lineWidth = lineWidth;
-        bgContext.moveTo(0, Math.floor(y*tileHeight));
-        bgContext.lineTo(gridWidth*tileWidth, Math.floor(y*tileHeight));        
-      }
-      bgContext.moveTo(0, Math.floor(gridHeight*tileHeight)-1);
-      bgContext.lineTo(gridWidth*tileWidth, Math.floor(y*tileHeight)-1);  
-
-      bgContext.stroke();
-    }
-	};
-
   function gridPositionFromCoordinates(clientX, clientY) {
 		return {
 			x: Math.floor((clientX - canvasOffsetLeft) / (canvasClientWidth/config.gridWidth)),
@@ -441,15 +410,6 @@ function App() {
 
   }
 
-
-  React.useEffect(() => {
-    const bgRenderCtx = bgCanvasRef.current.getContext('2d');
-    if (bgRenderCtx) {
-      drawGridLinesOnCanvas(bgRenderCtx, config.gridWidth, config.gridHeight, tileWidth, tileHeight);
-    }
-
-  }, [tileWidth]);
-
   React.useEffect(() => {
     console.log('useEffect');
     console.log('tiles length', tiles.length);
@@ -525,22 +485,23 @@ function App() {
     }
   }, [tiles, activeColumn]);
 
+
   return (
     <div className='App'>
       <div id='canvasDiv'
         style={{
           textAlign: 'center',
         }}>
-        <canvas
-          id='background-canvas'
-          ref={bgCanvasRef}
-          width={width}
-          height={height}
-          style={{
-            // border: '2px solid #000',
-            // marginTop: 10,
-          }}
-        ></canvas>
+        
+        <BackCanvas
+          bgCanvasRef = {bgCanvasRef} 
+          bgContext = {bgContext}
+          width = {width}
+          height = {height}
+          tileWidth = {tileWidth}
+          tileHeight = {tileHeight}
+          config = {config}
+        />
         <canvas
           id='canvas'
           ref={canvasRef}
