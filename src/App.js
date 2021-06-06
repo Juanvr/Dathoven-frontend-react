@@ -1,18 +1,13 @@
 import * as React from 'react';
 import * as Tone from 'tone';
-//import Grid from './components/Grid'
-//import Canvas from './components/Canvas'
-import Tile from './utils/Tile'
+  import Tile from './utils/Tile'
 import * as Notes from './utils/Notes'
 import Play from './components/Play'
 import Pause from './components/Pause'
 import Slider from './components/Slider'
 
 
-
 Tone.Transport.bpm.value = 120;
-console.log("Loop?", Tone.Transport.loop);
-// Tone.Transport.start();
 
 let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   'volume' : -4,
@@ -28,14 +23,8 @@ let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   }
 });
 
-
 function App() { 
   melodyPlayer.stealVoices = false;
-  // Tone.Transport.bpm.value = 200;
-  
-  // const synth = new Tone.Synth().toDestination();
-
-  // const synth = melodyPlayer.toDestination();
 
   const synthRef = React.useRef(melodyPlayer.toDestination());
 
@@ -77,50 +66,12 @@ function App() {
     synthRef.current.triggerAttackRelease(`${note}`, `${duration}`);
   }
 
-  function fromTileListToSequence(tiles, notes, gridWidth){
-  
-    let song = [];
-    for (let i = 0; i < tiles.length; i++){
-      let tile = tiles[i];
-      let element = {
-        note: notes[tile.y],
-        duration: "0:0:" + tile.size * 2,
-        velocity: 1
-      }
-      song.push(element);
-    }
-
-    let play = (value, time) => {
-      synthRef.current.triggerAttackRelease(value.note, value.duration, time, value.velocity);
-    };
-
-
-    let callback = function(time, step) {
-			let value = song[step];
-      if (value){
-        play(value, time);
-      }
-		};
-
-    var steps = [];
-    for (var i = 0; i < gridWidth; i++) {
-      steps.push(i);
-    }
-    let seq = new Tone.Sequence(callback, steps, '4n').start(0);
-
-
-
-    console.log('song',song);
-    return song;
-  }
-
-
 
 
   const refreshSchedule = (tiles) => {
     Tone.Transport.clear(eventId);
 
-    let count = 0;
+    let count = (activeColumn + 1) % config.gridWidth;
     let currentTempo = tempo;
     let newEventId = Tone.Transport.scheduleRepeat(
       (time) =>{
@@ -141,7 +92,12 @@ function App() {
     console.log(time);
     console.log(tiles);
 
-    let tile = tiles.filter(tile => tile.x === (count % config.gridWidth));
+    let activeColumn = count % config.gridWidth;
+
+    let tile = tiles.filter(tile => tile.x === (activeColumn));
+
+    setActiveColumn(activeColumn);
+
     if (tile && tile.length > 0){
       let element = {
         note: notes[tile[0].y],
@@ -171,17 +127,19 @@ function App() {
       setPlaying(false);
       Tone.Transport.clear(eventId);
       Tone.Transport.stop();
+      setActiveColumn(-1);
     }
   }
 
   const config = {
     gridWidth: 30, 
-    gridHeight: 20,
+    gridHeight: 15,
     tileMargin: 1
   };
 
   const bgCanvasRef = React.useRef(null);
   const canvasRef = React.useRef(null);
+  const frontCanvasRef =  React.useRef(null);
 
 
   /**
@@ -189,6 +147,7 @@ function App() {
    */
   const [bgContext, setBgContext] = React.useState(null);
   const [context, setContext] = React.useState(null);
+  const [frontCanvasContext, setFrontContext] = React.useState(null);
 
   const [mouseDown, setMouseDown] = React.useState(false);
 
@@ -210,7 +169,7 @@ function App() {
   const[tileWidth, setTileWidth] = React.useState(0);
   const[tileHeight, setTileHeight] = React.useState(0);
 
-  const[activeColumn, setActiveColumn] = React.useState(1);
+  const[activeColumn, setActiveColumn] = React.useState(-1);
 
   const[notes, setNotes] = React.useState([]);
 
@@ -226,7 +185,7 @@ function App() {
     
     let lineWidth = 1;
     if (bgContext){
-      // bgContext.translate(0.5, 0.5);
+      bgContext.translate(0.5, 0.5);
       console.log('drawlines',gridWidth, gridHeight, tileWidth, tileHeight)
       bgContext.strokeStyle = 'rgba(22, 168, 240, 0.9)';
       console.log(tileWidth);
@@ -413,9 +372,14 @@ function App() {
     return color.join('');
   }
 
-  function highlightActiveColumn(){
+  function highlightActiveColumn(context, activeColumn, tileWidth, width, height){
+    context.clearRect(
+      0, 
+      0, 
+      width, 
+      height
+      );
     if (activeColumn !== -1) {
-      // context.fillStyle = 'rgba(22, 168, 240, .08)';
       context.fillStyle = 'rgba(255, 255, 102, .3)';
       context.fillRect(activeColumn * tileWidth, 0, tileWidth, height);
     }
@@ -427,7 +391,7 @@ function App() {
     context.fillStyle = tile.color;
     context.beginPath();
 
-    let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin - 1;
+    let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
     let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin - 1;
     let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2 + 1;
     let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2 + 1 ;
@@ -457,9 +421,9 @@ function App() {
     console.log('delete', gridConfig)
 
     let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
-    let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin;
-    let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2;
-    let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2;
+    let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin - 1;
+    let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2 + 1;
+    let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2 + 1 ;
 
     // We make sure we do not leave any painted pixels due to rounding
     rectX -= gridConfig.margin*2;
@@ -488,29 +452,6 @@ function App() {
 		}
   }
 
-  function draw(){
-    // requestAnimationFrame(this._boundDraw);
-      if (context){
-        context.clearRect(0, 0, width, height);
-        console.log('fill')
-
-        //draw the active column
-        highlightActiveColumn();
-        // this._drawAI();
-
-        drawTilesOnCanvas();
-
-        // TWEEN.update();
-
-        // Draw a rectangle
-        // console.log('draw rectangle')
-        // if (context){
-          
-        //   context.fillRect(5, 5, 100, 100);
-        // }
-      }
-
-  };
   function calculateNotesOnGrid(gridHeight, noteStepLength, middleNote){ 
     
     let notes = [middleNote];
@@ -545,6 +486,23 @@ function App() {
     }
 
   }, [tileWidth]);
+
+
+
+
+  React.useEffect(() => {
+    if (frontCanvasRef.current) {
+      const frontRenderCtx = frontCanvasRef.current.getContext('2d');
+      if (frontRenderCtx){
+        setFrontContext(frontRenderCtx); 
+
+        highlightActiveColumn(frontRenderCtx, activeColumn, tileWidth, width, height);
+
+      }
+    }
+
+  }, [activeColumn]);
+
 
 
 
@@ -600,7 +558,6 @@ function App() {
   
         drawTilesOnCanvas(context, tiles, gridConfig);
 
-        // highlightActiveColumn();
 
         // let newSong = fromTileListToSong(tiles, notes, '');
         // setSong(newSong);
@@ -622,7 +579,7 @@ function App() {
         // canvasRef.current.removeEventListener('mousemove', handleMouseMove);
       }
     }
-  }, [bgContext, tiles]);
+  }, [tiles, activeColumn]);
 
   return (
     <div className='App'>
@@ -643,6 +600,16 @@ function App() {
         <canvas
           id='canvas'
           ref={canvasRef}
+          width={width}
+          height={height}
+          style={{
+            // border: '2px solid #000',
+            // marginTop: 10,
+          }}
+        ></canvas>
+        <canvas
+          id='front-canvas'
+          ref={frontCanvasRef}
           width={width}
           height={height}
           style={{

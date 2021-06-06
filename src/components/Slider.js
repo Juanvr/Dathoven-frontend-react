@@ -11,7 +11,7 @@ const Slider = ({currentTempo, handleTempoChange}) => {
           <input 
             className="slider"
             type="range"
-            min="70" max="300" 
+            min="70" max="250" 
             value={currentTempo} 
             onChange={handleTempoChange}
             step="1"
