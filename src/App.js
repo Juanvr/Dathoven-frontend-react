@@ -6,6 +6,7 @@ import Tile from './utils/Tile'
 import * as Notes from './utils/Notes'
 import Play from './components/Play'
 import Pause from './components/Pause'
+import Slider from './components/Slider'
 
 
 
@@ -28,9 +29,7 @@ let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
 });
 
 
-function App() {
-
-  
+function App() { 
   melodyPlayer.stealVoices = false;
   // Tone.Transport.bpm.value = 200;
   
@@ -39,6 +38,21 @@ function App() {
   // const synth = melodyPlayer.toDestination();
 
   const synthRef = React.useRef(melodyPlayer.toDestination());
+
+  
+  let play = (value, time) => {
+    synthRef.current.triggerAttackRelease(value.note, value.duration, time, value.velocity);
+  };
+
+
+  let callback = function(time, event) {
+    if (event){
+      play(event, time);
+    }
+  };
+
+  const seqRef = React.useRef(new Tone.Sequence(callback, [], '4n'))
+
   const synth = "";
 
 
@@ -52,67 +66,15 @@ function App() {
       }
       return 0;
     }
-    
     return tiles.sort( compare );
   }
 
-
-  function playSong(song){
-    
-    let song_sample = [
-      { time: 0,      note: "C3",   duration: "1" },
-      { time: "1",  note: "C4",   duration: "2" },
-      { time: "2",  note: "C4",   duration: "3" },
-    ];
-
-    // let song = song_sample;
-
-    console.log('playing song...', song);
-    function partCallback(time, value){
-      console.log('time', time);
-      console.log(Tone.Transport.now());
-      synth.triggerAttackRelease(value.note, value.duration, time, value.velocity);
-    }
-
-    const part = new Tone.Part(partCallback, song);
-
-    part.start(0);
-
-  }
-
   function playNote(note) {
-
-    console.log('playNote');
-      // Synth with Tone js
-    const synth = new Tone.Synth().toDestination();
-
-    synth.triggerAttackRelease(`${note}`, '8n');
+    synthRef.current.triggerAttackRelease(`${note}`, '8n');
   }
 
   function playNoteWithDuration(note, duration) {
-
-    console.log('playNote');
-      // Synth with Tone js
-    const synth = new Tone.Synth().toDestination();
-
-    synth.triggerAttackRelease(`${note}`, `${duration}`);
-  }
-
-  function fromTileListToSong(tiles, notes, tempo){
-
-    let song = [];
-    for (let i = 0; i < tiles.length; i++){
-      let tile = tiles[i];
-      let element = {
-        time: tile.x + 'm',
-        note: notes[tile.y],
-        duration: tile.size + 'm',
-        velocity: 1
-      }
-      song.push(element);
-    }
-    console.log('song',song);
-    return song;
+    synthRef.current.triggerAttackRelease(`${note}`, `${duration}`);
   }
 
   function fromTileListToSequence(tiles, notes, gridWidth){
@@ -122,7 +84,7 @@ function App() {
       let tile = tiles[i];
       let element = {
         note: notes[tile.y],
-        duration: "0:" + tile.size  + ":0",
+        duration: "0:0:" + tile.size * 2,
         velocity: 1
       }
       song.push(element);
@@ -151,41 +113,66 @@ function App() {
     console.log('song',song);
     return song;
   }
+
+
+
+
+  const refreshSchedule = (tiles) => {
+    Tone.Transport.clear(eventId);
+
+    let count = 0;
+    let currentTempo = tempo;
+    let newEventId = Tone.Transport.scheduleRepeat(
+      (time) =>{
+        count = callBackTick(time, count, tiles);
+        console.log("Tempo", currentTempo);
+      }, 
+      "8n"
+    );
+    setEventId(newEventId);
+
+  }
+
+
+
+  const callBackTick= (time, count, tiles) => {
+    console.log(count);
+    //do something with the time
+    console.log(time);
+    console.log(tiles);
+
+    let tile = tiles.filter(tile => tile.x === (count % config.gridWidth));
+    if (tile && tile.length > 0){
+      let element = {
+        note: notes[tile[0].y],
+        duration: "0:0:" + tile[0].size * 2,
+        velocity: 1
+      }
+      console.log(element);
+      playNoteWithDuration(element.note, element.duration);
+    } else{
+      console.log('silence');
+    }
+    count++;
+    return count;
+  }
+
+
+
+
   const handlePlayerClick = () => {
     if (!playing) {
       setPlaying(true);
-      playSong(song);
       Tone.Transport.start('+0.1');
 
-      let count = 0;
-      let eventId = Tone.Transport.scheduleRepeat(function(time){
-        console.log(count);
-        //do something with the time
-        console.log(time);
-        console.log(tiles);
+      refreshSchedule(tiles);
 
-        let tile = tiles.filter(tile => tile.x === (count % config.gridWidth));
-        if (tile && tile.length > 0){
-          let element = {
-            note: notes[tile[0].y],
-            duration: "0:" + tile[0].size  + ":0",
-            velocity: 1
-          }
-          console.log(element);
-          playNoteWithDuration(element.note, element.duration);
-        } else{
-          console.log('silence');
-        }
-        count++;
-      }, "4n");
-      setEventId(eventId);
     } else {
       setPlaying(false);
       Tone.Transport.clear(eventId);
       Tone.Transport.stop();
     }
   }
-
 
   const config = {
     gridWidth: 30, 
@@ -231,6 +218,8 @@ function App() {
   const[eventId, setEventId] = React.useState('');
 
   const[song, setSong] = React.useState([]);
+
+  const[tempo, setTempo] = React.useState(120);
  
 
   function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
@@ -321,6 +310,7 @@ function App() {
     setTiles(sortTiles(newTiles));
     setTilesToDelete(newTilesToDelete);
     setMouseDown(true);
+    refreshSchedule(sortTiles(newTiles));
   }
 
   function handleMouseUp(e) {
@@ -375,6 +365,7 @@ function App() {
       newTiles = newTiles.concat(newTile);
   
       setTiles(sortTiles(newTiles));
+      refreshSchedule(sortTiles(newTiles));
       setTilesToDelete(newTilesToDelete);
       setPreviousTile(newTile);
       setPreviousGridPosition(gridCoordinatesOfCurrentTile);
@@ -539,6 +530,13 @@ function App() {
 
   };
 
+  let handleTempoChange = (event) =>{
+    setTempo(event.target.value);
+
+    Tone.Transport.bpm.value = event.target.value;
+
+  }
+
 
   React.useEffect(() => {
     const bgRenderCtx = bgCanvasRef.current.getContext('2d');
@@ -547,6 +545,7 @@ function App() {
     }
 
   }, [tileWidth]);
+
 
 
   React.useEffect(() => {
@@ -655,9 +654,14 @@ function App() {
           onMouseMove = {handleMouseMove}
         ></canvas>
       </div>
-      <div className="player" >
-        {playing? <Pause onPlayerClick={handlePlayerClick} /> : <Play onPlayerClick={handlePlayerClick} />}
-      </div>
+      
+        <div className="player" >
+          {playing? <Pause onPlayerClick={() => handlePlayerClick(tempo)} /> : <Play onPlayerClick={() => handlePlayerClick(tempo)} />}
+        </div>
+        <div id='sliderContainer'>
+          <Slider currentTempo={tempo} handleTempoChange={handleTempoChange}/>
+        </div>
+
 
       
     </div>
