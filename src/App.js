@@ -4,28 +4,79 @@ import * as Tone from 'tone';
 //import Canvas from './components/Canvas'
 import Tile from './utils/Tile'
 import * as Notes from './utils/Notes'
-import Player from './components/Player'
+import Play from './components/Play'
+import Pause from './components/Pause'
+
+
+
+Tone.Transport.bpm.value = 120;
+console.log("Loop?", Tone.Transport.loop);
+// Tone.Transport.start();
+
+let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
+  'volume' : -4,
+  'oscillator' : {
+    'type' : 'triangle17',
+    // 'partials' : [16, 8, 4, 2, 1, 0.5, 1, 2]
+  },
+  'envelope' : {
+    'attack' : 0.01,
+    'decay' : 0.1,
+    'sustain' : 0.2,
+    'release' : 1.7,
+  }
+});
 
 
 function App() {
 
-  Tone.Transport.start();
+  
+  melodyPlayer.stealVoices = false;
+  // Tone.Transport.bpm.value = 200;
+  
+  // const synth = new Tone.Synth().toDestination();
 
-  function playSong(){
-    const synth = new Tone.Synth().toDestination();
+  // const synth = melodyPlayer.toDestination();
+
+  const synthRef = React.useRef(melodyPlayer.toDestination());
+  const synth = "";
+
+
+  function sortTiles(tiles){
+    function compare( a, b ) {
+      if ( a.x < b.x ){
+        return -1;
+      }
+      if ( a.x > b.x ){
+        return 1;
+      }
+      return 0;
+    }
     
-    var song = [
-      { time: 0,      note: "C3",   duration: "1m",      velocity: 0.5 },
-      { time: "0:2",  note: "C4",   duration: "16n",     velocity: 0.5 },
-      { time: "0:4",  note: "C4",   duration: "8n",      velocity: 0.5 },
+    return tiles.sort( compare );
+  }
+
+
+  function playSong(song){
+    
+    let song_sample = [
+      { time: 0,      note: "C3",   duration: "1" },
+      { time: "1",  note: "C4",   duration: "2" },
+      { time: "2",  note: "C4",   duration: "3" },
     ];
 
+    // let song = song_sample;
+
+    console.log('playing song...', song);
     function partCallback(time, value){
+      console.log('time', time);
+      console.log(Tone.Transport.now());
       synth.triggerAttackRelease(value.note, value.duration, time, value.velocity);
     }
+
     const part = new Tone.Part(partCallback, song);
 
-    part.start();
+    part.start(0);
 
   }
 
@@ -38,28 +89,108 @@ function App() {
     synth.triggerAttackRelease(`${note}`, '8n');
   }
 
-  function fromTileListSong(tiles, notes, tempo){
+  function playNoteWithDuration(note, duration) {
 
-    let tonePartElements = [];
+    console.log('playNote');
+      // Synth with Tone js
+    const synth = new Tone.Synth().toDestination();
+
+    synth.triggerAttackRelease(`${note}`, `${duration}`);
+  }
+
+  function fromTileListToSong(tiles, notes, tempo){
+
+    let song = [];
     for (let i = 0; i < tiles.length; i++){
       let tile = tiles[i];
-      let note = notes[tile.y]
-      let noteLenght = tile.size;
-      tonePartElements.push([])
+      let element = {
+        time: tile.x + 'm',
+        note: notes[tile.y],
+        duration: tile.size + 'm',
+        velocity: 1
+      }
+      song.push(element);
+    }
+    console.log('song',song);
+    return song;
+  }
+
+  function fromTileListToSequence(tiles, notes, gridWidth){
+  
+    let song = [];
+    for (let i = 0; i < tiles.length; i++){
+      let tile = tiles[i];
+      let element = {
+        note: notes[tile.y],
+        duration: "0:" + tile.size  + ":0",
+        velocity: 1
+      }
+      song.push(element);
     }
 
-    // const part = new Tone.Part(((time, note) => {
-    //   // the notes given as the second element in the array
-    //   // will be passed in as the second argument
-    //   synth.triggerAttackRelease(note, '8n', time);
-    // }), [[0, 'C2'], ['0:2', 'C3'], ['0:3:2', 'G2']]).start(0);
+    let play = (value, time) => {
+      synthRef.current.triggerAttackRelease(value.note, value.duration, time, value.velocity);
+    };
 
+
+    let callback = function(time, step) {
+			let value = song[step];
+      if (value){
+        play(value, time);
+      }
+		};
+
+    var steps = [];
+    for (var i = 0; i < gridWidth; i++) {
+      steps.push(i);
+    }
+    let seq = new Tone.Sequence(callback, steps, '4n').start(0);
+
+
+
+    console.log('song',song);
+    return song;
   }
+  const handlePlayerClick = () => {
+    if (!playing) {
+      setPlaying(true);
+      playSong(song);
+      Tone.Transport.start('+0.1');
+
+      let count = 0;
+      let eventId = Tone.Transport.scheduleRepeat(function(time){
+        console.log(count);
+        //do something with the time
+        console.log(time);
+        console.log(tiles);
+
+        let tile = tiles.filter(tile => tile.x === (count % config.gridWidth));
+        if (tile && tile.length > 0){
+          let element = {
+            note: notes[tile[0].y],
+            duration: "0:" + tile[0].size  + ":0",
+            velocity: 1
+          }
+          console.log(element);
+          playNoteWithDuration(element.note, element.duration);
+        } else{
+          console.log('silence');
+        }
+        count++;
+      }, "4n");
+      setEventId(eventId);
+    } else {
+      setPlaying(false);
+      Tone.Transport.clear(eventId);
+      Tone.Transport.stop();
+    }
+  }
+
 
   const config = {
     gridWidth: 30, 
     gridHeight: 20,
-    tileMargin: 0.5
+    tileMargin: 1
   };
 
   const bgCanvasRef = React.useRef(null);
@@ -96,19 +227,25 @@ function App() {
 
   const[notes, setNotes] = React.useState([]);
 
+  const[playing, setPlaying] = React.useState(false);
+  const[eventId, setEventId] = React.useState('');
+
+  const[song, setSong] = React.useState([]);
+ 
 
   function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
+    
+    let lineWidth = 1;
     if (bgContext){
-      bgContext.translate(0.5, 0.5);
+      // bgContext.translate(0.5, 0.5);
       console.log('drawlines',gridWidth, gridHeight, tileWidth, tileHeight)
-      bgContext.strokeStyle = '#000000';
-      bgContext.lineWidth = 1;
+      bgContext.strokeStyle = 'rgba(22, 168, 240, 0.9)';
       console.log(tileWidth);
 
       bgContext.beginPath();
 
       for (var x = 0; x < gridWidth; x++) {
-        bgContext.lineWidth = 1;
+        bgContext.lineWidth = lineWidth;
         bgContext.moveTo(Math.floor(x*tileWidth), 0);
         bgContext.lineTo(Math.floor(x*tileWidth), gridHeight*tileHeight);
       }
@@ -116,7 +253,7 @@ function App() {
       bgContext.lineTo(Math.floor(gridWidth*tileWidth)-1, gridHeight*tileHeight);
 
       for (var y = 0; y < gridHeight; y++) {
-        bgContext.lineWidth = 1;
+        bgContext.lineWidth = lineWidth;
         bgContext.moveTo(0, Math.floor(y*tileHeight));
         bgContext.lineTo(gridWidth*tileWidth, Math.floor(y*tileHeight));        
       }
@@ -181,7 +318,7 @@ function App() {
     playNote(notes[newTile.y]);
 
     setPreviousGridPosition(gridCoordinatesOfCurrentTile);
-    setTiles(newTiles);
+    setTiles(sortTiles(newTiles));
     setTilesToDelete(newTilesToDelete);
     setMouseDown(true);
   }
@@ -237,7 +374,7 @@ function App() {
       
       newTiles = newTiles.concat(newTile);
   
-      setTiles(newTiles);
+      setTiles(sortTiles(newTiles));
       setTilesToDelete(newTilesToDelete);
       setPreviousTile(newTile);
       setPreviousGridPosition(gridCoordinatesOfCurrentTile);
@@ -299,10 +436,10 @@ function App() {
     context.fillStyle = tile.color;
     context.beginPath();
 
-    let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
-    let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin;
-    let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2;
-    let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2;
+    let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin - 1;
+    let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin - 1;
+    let rectWidth = gridConfig.tileWidth * tile.size - gridConfig.margin * 2 + 1;
+    let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2 + 1 ;
 
     console.log('fillRect', {
       rectX, rectY, rectWidth, rectHeight
@@ -326,6 +463,7 @@ function App() {
 	};
 
   function deleteTileOnCanvas(context, tile, gridConfig){
+    console.log('delete', gridConfig)
 
     let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
     let rectY = tile.y * gridConfig.tileHeight + gridConfig.margin;
@@ -333,9 +471,9 @@ function App() {
     let rectHeight = gridConfig.tileHeight - gridConfig.margin * 2;
 
     // We make sure we do not leave any painted pixels due to rounding
-    rectX -= gridConfig.margin;
+    rectX -= gridConfig.margin*2;
     rectY -= gridConfig.margin;
-    rectWidth += gridConfig.margin*2;
+    rectWidth += gridConfig.margin*3;
     rectHeight += gridConfig.margin*2;
 
     console.log('clearRect', {
@@ -401,6 +539,7 @@ function App() {
 
   };
 
+
   React.useEffect(() => {
     const bgRenderCtx = bgCanvasRef.current.getContext('2d');
     if (bgRenderCtx) {
@@ -463,6 +602,11 @@ function App() {
         drawTilesOnCanvas(context, tiles, gridConfig);
 
         // highlightActiveColumn();
+
+        // let newSong = fromTileListToSong(tiles, notes, '');
+        // setSong(newSong);
+
+        // fromTileListToSequence(tiles, notes, config.gridWidth)
       }
 
         console.log('fill')
@@ -471,22 +615,6 @@ function App() {
         
       }
     }
-
-
-
-    // // Draw a rectangle
-    // if (context) context.fillRect(5, 5, 100, 100);
-
-
-    // // Draw a circle
-    // if(context) {
-    //   context.beginPath();
-    //   context.fillStyle = '#ff7f50';
-    //   context.arc(440, 60, 50, 0, Math.PI * 2, true);
-    //   context.fill();
-    //   context.fillStyle = '#000';
-    //   context.closePath();
-    // }
 
     return function cleanup() {
       if (canvasRef.current) {
@@ -527,7 +655,9 @@ function App() {
           onMouseMove = {handleMouseMove}
         ></canvas>
       </div>
-      <Player ></Player>
+      <div className="player" >
+        {playing? <Pause onPlayerClick={handlePlayerClick} /> : <Play onPlayerClick={handlePlayerClick} />}
+      </div>
 
       
     </div>
