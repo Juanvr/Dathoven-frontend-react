@@ -1,12 +1,41 @@
 import React from 'react'
 
-const FrontCanvas = ({activeColumn}) => {
+const FrontCanvas = ({width, height, handleMouseDown, handleMouseUp, handleMouseMove, activeColumn, tileWidth}) => {
+  const frontCanvasRef =  React.useRef(null);
+
+  function highlightActiveColumn(context, activeColumn, tileWidth, width, height){
+    context.clearRect(
+      0, 
+      0, 
+      width, 
+      height
+      );
+    if (activeColumn !== -1) {
+      context.fillStyle = 'rgba(255, 255, 102, .3)';
+      context.fillRect(activeColumn * tileWidth, 0, tileWidth, height);
+    }
+  }
+
+  React.useEffect(() => {
+    if (frontCanvasRef.current) {
+      const frontRenderCtx = frontCanvasRef.current.getContext('2d');
+      if (frontRenderCtx){
+        highlightActiveColumn(frontRenderCtx, activeColumn, tileWidth, width, height);
+      }
+    }
+
+  }, [activeColumn]);
 
   return (
-    <svg className="button" viewBox="0 0 60 60" onClick={onPlayerClick}>
-      <polygon points="0,0 15,0 15,60 0,60" />
-      <polygon points="25,0 40,0 40,60 25,60" />
-    </svg>
+    <canvas
+      id='front-canvas'
+      ref={frontCanvasRef}
+      width={width}
+      height={height}
+      onMouseDown = {handleMouseDown}
+      onMouseUp = {handleMouseUp}
+      onMouseMove = {handleMouseMove}
+    ></canvas>
   )
 }
 

@@ -6,6 +6,8 @@ import Play from './components/Play'
 import Pause from './components/Pause'
 import Slider from './components/Slider'
 
+import FrontCanvas from './components/FrontCanvas'
+
 let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   'volume' : -4,
   'oscillator' : {
@@ -116,15 +118,12 @@ function App() {
 
   const bgCanvasRef = React.useRef(null);
   const canvasRef = React.useRef(null);
-  const frontCanvasRef =  React.useRef(null);
-
 
   /**
    * the background context
    */
   const [bgContext, setBgContext] = React.useState(null);
   const [context, setContext] = React.useState(null);
-  const [frontCanvasContext, setFrontContext] = React.useState(null);
 
   const [mouseDown, setMouseDown] = React.useState(false);
 
@@ -349,19 +348,6 @@ function App() {
     return color.join('');
   }
 
-  function highlightActiveColumn(context, activeColumn, tileWidth, width, height){
-    context.clearRect(
-      0, 
-      0, 
-      width, 
-      height
-      );
-    if (activeColumn !== -1) {
-      context.fillStyle = 'rgba(255, 255, 102, .3)';
-      context.fillRect(activeColumn * tileWidth, 0, tileWidth, height);
-    }
-  }
-
   function drawTileOnCanvas(context, tile, gridConfig){
     // bgContext.translate(0.5, 0.5);
 
@@ -464,25 +450,6 @@ function App() {
 
   }, [tileWidth]);
 
-
-
-
-  React.useEffect(() => {
-    if (frontCanvasRef.current) {
-      const frontRenderCtx = frontCanvasRef.current.getContext('2d');
-      if (frontRenderCtx){
-        setFrontContext(frontRenderCtx); 
-
-        highlightActiveColumn(frontRenderCtx, activeColumn, tileWidth, width, height);
-
-      }
-    }
-
-  }, [activeColumn]);
-
-
-
-
   React.useEffect(() => {
     console.log('useEffect');
     console.log('tiles length', tiles.length);
@@ -584,19 +551,16 @@ function App() {
             // marginTop: 10,
           }}
         ></canvas>
-        <canvas
-          id='front-canvas'
-          ref={frontCanvasRef}
-          width={width}
-          height={height}
-          style={{
-            // border: '2px solid #000',
-            // marginTop: 10,
-          }}
-          onMouseDown = {handleMouseDown}
-          onMouseUp = {handleMouseUp}
-          onMouseMove = {handleMouseMove}
-        ></canvas>
+        <FrontCanvas 
+          width = {width}
+          height = {height}
+          handleMouseDown = {handleMouseDown} 
+          handleMouseUp = {handleMouseUp}
+          handleMouseMove = {handleMouseMove}
+          activeColumn = {activeColumn}
+          tileWidth = {tileWidth}
+        />
+        
       </div>
       
         <div className="player" >
