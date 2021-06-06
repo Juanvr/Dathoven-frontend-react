@@ -6,9 +6,6 @@ import Play from './components/Play'
 import Pause from './components/Pause'
 import Slider from './components/Slider'
 
-
-Tone.Transport.bpm.value = 120;
-
 let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   'volume' : -4,
   'oscillator' : {
@@ -23,27 +20,10 @@ let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   }
 });
 
-function App() { 
-  melodyPlayer.stealVoices = false;
+function App() {  
 
-  const synthRef = React.useRef(melodyPlayer.toDestination());
-
-  
-  let play = (value, time) => {
-    synthRef.current.triggerAttackRelease(value.note, value.duration, time, value.velocity);
-  };
-
-
-  let callback = function(time, event) {
-    if (event){
-      play(event, time);
-    }
-  };
-
-  const seqRef = React.useRef(new Tone.Sequence(callback, [], '4n'))
-
-  const synth = "";
-
+  // We will use always the same synth
+  const synthRef = React.useRef(melodyPlayer.toDestination()); 
 
   function sortTiles(tiles){
     function compare( a, b ) {
@@ -55,72 +35,69 @@ function App() {
       }
       return 0;
     }
-    return tiles.sort( compare );
-  }
-
-  function playNote(note) {
-    synthRef.current.triggerAttackRelease(`${note}`, '8n');
+    return tiles.sort(compare);
   }
 
   function playNoteWithDuration(note, duration) {
-    synthRef.current.triggerAttackRelease(`${note}`, `${duration}`);
+    synthRef.current.triggerAttackRelease(note, duration);
   }
 
+  function playNoteClick(note) {
+    playNoteWithDuration(note, '8n');
+  }
 
+  function refreshSchedule(tiles) {
 
-  const refreshSchedule = (tiles) => {
+    // We clear the current even scheduled
     Tone.Transport.clear(eventId);
 
+    // We keep the count of the current active column
     let count = (activeColumn + 1) % config.gridWidth;
-    let currentTempo = tempo;
+
+    // We schedule the new event with current tiles
     let newEventId = Tone.Transport.scheduleRepeat(
       (time) =>{
         count = callBackTick(time, count, tiles);
-        console.log("Tempo", currentTempo);
       }, 
       "8n"
     );
     setEventId(newEventId);
-
   }
 
+  function buildNoteElementFromTile(tile, notes){
+    let element = {
+      note: notes[tile[0].y],
+      duration: "0:0:" + tile[0].size * 2, // Size of tile * 2 sixteenths of measure == 8n * note length
+      velocity: 1
+    }
+    return element;
+  }
 
+  function callBackTick(time, count, tiles){
 
-  const callBackTick= (time, count, tiles) => {
-    console.log(count);
-    //do something with the time
-    console.log(time);
-    console.log(tiles);
-
+    // We calculate current active column
     let activeColumn = count % config.gridWidth;
 
+    // We get the tile in current active column
     let tile = tiles.filter(tile => tile.x === (activeColumn));
 
+    // We save active column state to trigger column highlight
     setActiveColumn(activeColumn);
 
+    // If there's a tile on active column we play it
     if (tile && tile.length > 0){
-      let element = {
-        note: notes[tile[0].y],
-        duration: "0:0:" + tile[0].size * 2,
-        velocity: 1
-      }
-      console.log(element);
+      let element = buildNoteElementFromTile( tile, notes);
       playNoteWithDuration(element.note, element.duration);
-    } else{
-      console.log('silence');
     }
+
     count++;
     return count;
   }
-
-
-
 
   const handlePlayerClick = () => {
     if (!playing) {
       setPlaying(true);
       Tone.Transport.start('+0.1');
-
       refreshSchedule(tiles);
 
     } else {
@@ -263,7 +240,7 @@ function App() {
 
     }
 
-    playNote(notes[newTile.y]);
+    playNoteClick(notes[newTile.y]);
 
     setPreviousGridPosition(gridCoordinatesOfCurrentTile);
     setTiles(sortTiles(newTiles));
