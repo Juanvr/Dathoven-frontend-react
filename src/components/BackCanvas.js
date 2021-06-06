@@ -1,6 +1,8 @@
 import React from 'react'
 
-const BackCanvas = ({bgCanvasRef, bgContext, width, height, tileWidth, tileHeight, config}) => {
+const BackCanvas = ({width, height, tileWidth, tileHeight, config}) => {
+
+  const bgCanvasRef = React.useRef(null);
 
   function drawGridLinesOnCanvas(canvasContext, gridWidth, gridHeight, tileWidth, tileHeight) {
     
@@ -33,7 +35,14 @@ const BackCanvas = ({bgCanvasRef, bgContext, width, height, tileWidth, tileHeigh
     }
 	};
 
+  const [bgContext, setBgContext] = React.useState(null);
+
   React.useEffect(() => {
+    const bgRenderCtx = bgCanvasRef.current.getContext('2d');
+    if (bgCanvasRef.current) {
+      setBgContext(bgRenderCtx);
+    }
+
     if (bgContext) {
       // Clear Canvas
       bgContext.clearRect(

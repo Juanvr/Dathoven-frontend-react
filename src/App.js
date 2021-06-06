@@ -117,13 +117,12 @@ function App() {
     tileMargin: 1
   };
 
-  const bgCanvasRef = React.useRef(null);
+
   const canvasRef = React.useRef(null);
 
   /**
    * the background context
    */
-  const [bgContext, setBgContext] = React.useState(null);
   const [context, setContext] = React.useState(null);
 
   const [mouseDown, setMouseDown] = React.useState(false);
@@ -414,12 +413,10 @@ function App() {
     console.log('useEffect');
     console.log('tiles length', tiles.length);
     console.log('tiles', tiles);
-    if (bgCanvasRef.current) {
+    if (canvasRef.current) {
       const renderCtx = canvasRef.current.getContext('2d');
-      const bgRenderCtx = bgCanvasRef.current.getContext('2d');
-      if (bgRenderCtx) {
+      if (renderCtx) {
         setContext(renderCtx);
-        setBgContext(bgRenderCtx);
 
         setOffsetLeft(canvasRef.current.offsetLeft);
         setOffsetTop(canvasRef.current.offsetTop);
@@ -494,8 +491,6 @@ function App() {
         }}>
         
         <BackCanvas
-          bgCanvasRef = {bgCanvasRef} 
-          bgContext = {bgContext}
           width = {width}
           height = {height}
           tileWidth = {tileWidth}
