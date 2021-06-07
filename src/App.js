@@ -25,7 +25,6 @@ let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
 });
 
 function App() {  
-
   // We will use always the same synth
   const synthRef = React.useRef(melodyPlayer.toDestination()); 
 
