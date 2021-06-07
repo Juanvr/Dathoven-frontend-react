@@ -1,7 +1,10 @@
 import * as React from 'react';
 import * as Tone from 'tone';
-  import Tile from './utils/Tile'
+
 import * as Notes from './utils/Notes'
+import * as Sound from './utils/Sound'
+import * as TileOperations from './utils/TileOperations'
+
 import Play from './components/Play'
 import Pause from './components/Pause'
 import Slider from './components/Slider'
@@ -28,80 +31,11 @@ function App() {
   // We will use always the same synth
   const synthRef = React.useRef(melodyPlayer.toDestination()); 
 
-  function sortTiles(tiles){
-    function compare( a, b ) {
-      if ( a.x < b.x ){
-        return -1;
-      }
-      if ( a.x > b.x ){
-        return 1;
-      }
-      return 0;
-    }
-    return tiles.sort(compare);
-  }
-
-  function playNoteWithDuration(note, duration) {
-    synthRef.current.triggerAttackRelease(note, duration);
-  }
-
-  function playNoteClick(note) {
-    playNoteWithDuration(note, '8n');
-  }
-
-  function refreshSchedule(tiles) {
-
-    // We clear the current even scheduled
-    Tone.Transport.clear(eventId);
-
-    // We keep the count of the current active column
-    let count = (activeColumn + 1) % config.gridWidth;
-
-    // We schedule the new event with current tiles
-    let newEventId = Tone.Transport.scheduleRepeat(
-      (time) =>{
-        count = callBackTick(time, count, tiles);
-      }, 
-      "8n"
-    );
-    setEventId(newEventId);
-  }
-
-  function buildNoteElementFromTile(tile, notes){
-    let element = {
-      note: notes[tile[0].y],
-      duration: "0:0:" + tile[0].size * 2, // Size of tile * 2 sixteenths of measure == 8n * note length
-      velocity: 1
-    }
-    return element;
-  }
-
-  function callBackTick(time, count, tiles){
-
-    // We calculate current active column
-    let activeColumn = count % config.gridWidth;
-
-    // We get the tile in current active column
-    let tile = tiles.filter(tile => tile.x === (activeColumn));
-
-    // We save active column state to trigger column highlight
-    setActiveColumn(activeColumn);
-
-    // If there's a tile on active column we play it
-    if (tile && tile.length > 0){
-      let element = buildNoteElementFromTile( tile, notes);
-      playNoteWithDuration(element.note, element.duration);
-    }
-
-    count++;
-    return count;
-  }
-
   const handlePlayerClick = () => {
     if (!playing) {
       setPlaying(true);
       Tone.Transport.start('+0.1');
-      refreshSchedule(tiles);
+      Sound.refreshSchedule(Tone.Transport, activeColumn, tiles, config, eventId, setActiveColumn, setEventId, synthRef.current, notes);
 
     } else {
       setPlaying(false);
@@ -116,7 +50,6 @@ function App() {
     gridHeight: 15,
     tileMargin: 1
   };
-
 
   const [mouseDown, setMouseDown] = React.useState(false);
 
@@ -145,8 +78,6 @@ function App() {
   const[playing, setPlaying] = React.useState(false);
   const[eventId, setEventId] = React.useState('');
 
-  const[song, setSong] = React.useState([]);
-
   const[tempo, setTempo] = React.useState(120);
 
  
@@ -172,7 +103,7 @@ function App() {
     };
 
     let overlappingExistingTile = 
-      newTiles.find( tile => overlappedTiles(newTile, tile));
+      newTiles.find( tile => TileOperations.overlappedTiles(newTile, tile));
 
     // console.log(e.clientX, e.clientY);
 
@@ -186,7 +117,7 @@ function App() {
       newTiles = newTiles.filter( tile => !(tile.x === overlappingExistingTile.x && tile.y === overlappingExistingTile.y));
     } else {
 
-      let tileInSameColumn = newTiles.find( tile => sameColumnTiles(newTile, tile));
+      let tileInSameColumn = newTiles.find( tile => TileOperations.sameColumnTiles(newTile, tile));
 
       if (tileInSameColumn){
         // add to Tiles to Remove
@@ -201,13 +132,13 @@ function App() {
 
     }
 
-    playNoteClick(notes[newTile.y]);
+    Sound.playNoteClick(synthRef.current, notes[newTile.y]);
 
     setPreviousGridPosition(gridCoordinatesOfCurrentTile);
-    setTiles(sortTiles(newTiles));
+    setTiles(TileOperations.sortTiles(newTiles));
     setTilesToDelete(newTilesToDelete);
     setMouseDown(true);
-    refreshSchedule(sortTiles(newTiles));
+    Sound.refreshSchedule(Tone.Transport, activeColumn, TileOperations.sortTiles(newTiles), config, eventId, setActiveColumn, setEventId, synthRef.current, notes);
   }
 
   function handleMouseUp(e) {
@@ -225,7 +156,7 @@ function App() {
     let newTiles = [...tiles];
     let newTilesToDelete = [...tilesToDelete];
 
-    if (adjacentTiles(gridCoordinatesOfCurrentTile, previousGridPosition)){
+    if (TileOperations.adjacentTiles(gridCoordinatesOfCurrentTile, previousGridPosition)){
 
       let newTilePosition = {
         x: gridCoordinatesOfCurrentTile.x,
@@ -234,7 +165,7 @@ function App() {
         color: 'blue'
       };
   
-      let tileInSameColumn = newTiles.find( tile => sameColumnTiles(tile, newTilePosition));
+      let tileInSameColumn = newTiles.find( tile => TileOperations.sameColumnTiles(tile, newTilePosition));
 
       if (tileInSameColumn){
         // add to Tiles to Remove
@@ -261,37 +192,12 @@ function App() {
       
       newTiles = newTiles.concat(newTile);
   
-      setTiles(sortTiles(newTiles));
-      refreshSchedule(sortTiles(newTiles));
+      setTiles(TileOperations.sortTiles(newTiles));
+      Sound.refreshSchedule(Tone.Transport, activeColumn, TileOperations.sortTiles(newTiles), config, eventId, setActiveColumn, setEventId, synthRef.current, notes);
       setTilesToDelete(newTilesToDelete);
       setPreviousTile(newTile);
       setPreviousGridPosition(gridCoordinatesOfCurrentTile);
     }
-  }
-
-  function adjacentTiles( tile1, tile2){
-
-    let adjacentColumn = tile1.x - tile2.x === -1 || tile1.x - tile2.x === 1;
-    let sameRow = tile1.y === tile2.y;
-
-    return sameRow && adjacentColumn;
-  }
-
-  function overlappedTiles( tile1, tile2 ){
-    let sameColumn = sameColumnTiles(tile1, tile2);
-
-    let sameRow = tile1.y === tile2.y;
-
-    return sameRow && sameColumn;
-  }
-
-  function sameColumnTiles( tile1, tile2){
-
-    let overlappedX = 
-    (tile1.x <= tile2.x && tile1.x + tile1.size > tile2.x) || 
-    (tile2.x <= tile1.x && tile2.x + tile2.size > tile1.x);
-
-    return overlappedX;
   }
 
   function randomColor() {
