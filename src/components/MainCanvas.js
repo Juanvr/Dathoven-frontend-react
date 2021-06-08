@@ -131,10 +131,6 @@ const MainCanvas = (
       ref={canvasRef}
       width={width}
       height={height}
-      style={{
-        // border: '2px solid #000',
-        // marginTop: 10,
-      }}
     ></canvas>
   )
 }

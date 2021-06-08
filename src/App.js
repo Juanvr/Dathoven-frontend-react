@@ -12,6 +12,7 @@ import Slider from './components/Slider'
 import FrontCanvas from './components/FrontCanvas'
 import BackCanvas from './components/BackCanvas'
 import MainCanvas from './components/MainCanvas'
+import SuggestionsCanvas from './components/SuggestionsCanvas'
 
 let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   'volume' : -4,
@@ -80,6 +81,12 @@ function App() {
 
   const[tempo, setTempo] = React.useState(120);
 
+  const suggestionTilesExample = [
+  ]
+
+  const[suggestionTiles, setSuggestionTiles] = React.useState(suggestionTilesExample);
+
+  
  
   function gridPositionFromCoordinates(clientX, clientY) {
 		return {
@@ -259,6 +266,16 @@ function App() {
           tileHeight = {tileHeight}
           config = {config}
         />
+        <SuggestionsCanvas
+          tiles = {tiles}
+          suggestionTiles = {suggestionTiles}
+          setSuggestionTiles = {setSuggestionTiles}
+          tileWidth = {tileWidth}
+          tileHeight = {tileHeight}
+          width = {width}
+          height = {height}
+          config = {config}
+        />
         <MainCanvas
           tiles = {tiles}
           setOffsetLeft = {setOffsetLeft}
@@ -277,6 +294,7 @@ function App() {
           height = {height}
           config = {config}
         />
+
         <FrontCanvas 
           width = {width}
           height = {height}
