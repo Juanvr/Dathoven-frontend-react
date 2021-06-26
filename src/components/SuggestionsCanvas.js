@@ -17,7 +17,7 @@ const SuggestionsCanvas = (
   const [context, setContext] = React.useState(null);
   
   function drawTileOnCanvas(context, tile, gridConfig, fillStyle){
-    context.fillStyle = fillStyle;//tile.color;
+    context.fillStyle = tile.color;
     context.beginPath();
 
     let rectX = tile.x * gridConfig.tileWidth + gridConfig.margin;
@@ -44,7 +44,7 @@ const SuggestionsCanvas = (
       width, 
       height
       );
-      
+
     console.log('drawing', tiles.length, 'tiles')
 		for (let i = 0; i < tiles.length; i++) {
 			let tile = tiles[i];

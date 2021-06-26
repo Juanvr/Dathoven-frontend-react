@@ -10,6 +10,7 @@ const BackCanvas = ({width, height, tileWidth, tileHeight, config}) => {
     if (canvasContext){
       canvasContext.translate(0.5, 0.5); // We avoid blurriness due to canvas scaling
       canvasContext.strokeStyle = 'rgba(22, 168, 240, 0.9)';
+      // canvasContext.strokeStyle = 'rgba(255,255,255, 0.5)';
 
       canvasContext.beginPath();
 

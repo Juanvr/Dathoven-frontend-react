@@ -4,6 +4,7 @@ import * as Tone from 'tone';
 import * as Notes from './utils/Notes'
 import * as Sound from './utils/Sound'
 import * as TileOperations from './utils/TileOperations'
+import * as Predictions from './utils/Predictions'
 
 import Play from './components/Play'
 import Pause from './components/Pause'
@@ -18,7 +19,7 @@ import SuggestionsCanvas from './components/SuggestionsCanvas'
 import * as tf from '@tensorflow/tfjs';
 
 const url = {
-  model: "https://dathoven.s3.eu-west-3.amazonaws.com/Model/model.json"
+  model: "https://dathoven-model.s3.eu-west-3.amazonaws.com/Model/model.json"
   // metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
   };
 
@@ -37,84 +38,6 @@ let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
   }
 });
 
-function argsortDesc(array){
-  return array                              // [10, 20, 30, 5]
-    .map( (item, index) => [item, index])   // [[10, 0], [20, 1], [30, 2], [5, 3]]
-    .sort( (a, b) => b[0] - a[0] )          // [[30, 2], [20, 1], [10, 0], [5, 3]]
-    .map( (item) => item[1]);               // [2, 1, 0, 3]
-}
-
-function prePadSequence( sequence, maxlen ){
-  let resultSequence = [... sequence];
-  for (let i = 0; i < maxlen - sequence.length; i++){
-    resultSequence.unshift(0);
-  }
-  return resultSequence;
-}
-
-function sample(predictions, n){
-  n = Math.min(predictions.length, n);
-
-  let sorted_indexes = argsortDesc(predictions);
-
-  let randint = Math.floor(Math.random() * n);
-
-  return sorted_indexes[randint];
-
-}
-
-function getNextIntervalPrediction(seq, seq_length, model){
-  let input_sequence = seq.slice(-seq_length);
-  let x = prePadSequence(input_sequence, seq_length);
-  let tensor = tf.tensor2d([x]);
-
-  let predictionTensor = model.predict(tensor);
-
-  let prediction = predictionTensor.arraySync();
-
-  return prediction[0];
-
-}
-
-function sampleSeq(seq, seq_length, model, output_seq_length ){
-  if (output_seq_length <= seq.length) {
-    throw "output_seq_length must be higher than seq_length";
-  } 
-  let output_seq = [...seq];
-  for (let i = 0; i < output_seq_length - seq.length; i++){
-    let input_sequence = seq.slice(-seq_length);
-    let x = prePadSequence(input_sequence, seq_length);
-
-    let tensor = tf.tensor2d([x]);
-
-    console.log(tensor);
-    let predictionTensor = model.predict(tensor);
-
-    console.log('prediction done', predictionTensor);
-
-    let prediction = predictionTensor.arraySync()
-
-    console.log('prediction array', prediction);
-
-    let index = sample(prediction[0], 3);
-
-    console.log('output_seq', output_seq)
-
-    output_seq = [...output_seq, index];
-
-  }
-  return output_seq;
-}
-
-function generatePrediction( initialSequence, modelSeqLength, model, outputSeqLength){
-  let generatedVector = sampleSeq(initialSequence, modelSeqLength, model, outputSeqLength);
-
-  return generatedVector;
-
-
-}
-
-
 function App() {  
 
   let number_to_interval = {};
@@ -130,30 +53,12 @@ function App() {
   const [metadata, setMetadata] = React.useState();
   const [model, setModel] = React.useState();
 
-  async function loadModel(url) {
-    try {
-      console.log('json', url.model);
-      const model = await tf.loadLayersModel(url.model);
-      setModel(model);
-    } 
-    catch (err) {
-      console.log(err);
-    }}
-  async function loadMetadata(url) {
-    try {
-      const metadataJson = await fetch(url.metadata);
-      const metadata = await metadataJson.json();
-      setMetadata(metadata);} 
-    catch (err) {
-      console.log(err);
-    }}
-
   React.useEffect(()=>{
     console.log('useEffect', 'setModel');
 
     if (!model){
       tf.ready().then(()=>{
-        loadModel(url)
+        Predictions.loadModel(url, setModel);
       });
     }
 
@@ -243,7 +148,7 @@ function App() {
       x: gridCoordinatesOfCurrentTile.x,
       y: gridCoordinatesOfCurrentTile.y,
       size: 1,
-      color: 'blue'
+      color: 'white'
     };
 
     let overlappingExistingTile = 
@@ -335,9 +240,9 @@ function App() {
     for (let i = lastX + 1; i < config.gridWidth; i++){
       console.log("predict");
 
-      let prediction = getNextIntervalPrediction(intervals, 30, model);
+      let prediction = Predictions.getNextIntervalPrediction(intervals, 30, model);
 
-      let sorted_indexes = argsortDesc(prediction);
+      let sorted_indexes = Predictions.argsortDesc(prediction);
 
       let sortedIntervals = sorted_indexes.map(index => number_to_interval[index]);
 
@@ -371,7 +276,7 @@ function App() {
           x: i,
           y: newY,
           size: 1,
-          color: 'green'
+          color: '#edb738'
         };
       
       console.log("suggestionTile", newSuggestionTile);

@@ -5,7 +5,7 @@ let Sound = {}
   }
 
   export function playNoteClick(instrument, note){
-    this.playNoteWithDuration(instrument, note, '8n');
+    playNoteWithDuration(instrument, note, '8n');
   }
 
   

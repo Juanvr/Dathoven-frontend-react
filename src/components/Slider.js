@@ -1,7 +1,7 @@
 
 
 import * as React from 'react';
-import metronome from '../assets/images/metronome.png'; 
+import metronome from '../assets/images/metronome-white.png'; 
 
 const Slider = ({currentTempo, handleTempoChange}) => {
   return (
