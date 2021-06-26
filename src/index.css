@@ -47,6 +47,26 @@ canvas {
   float:left;
 }
 
+.lightBulbContainer{
+  position: absolute;
+  top: 82%;
+  left: 0%;
+  width: 25%;
+  height: 10%;
+}
+
+#LightBulb{
+  margin-left: 4%;
+  margin-top: 1%;
+  position:relative;
+  width:20%;
+  float:left;
+}
+
+.LightBulbEnabled{
+  cursor: pointer;
+}
+
 #TempoLabel{
   margin-left: 1%;
   margin-top: 2%;

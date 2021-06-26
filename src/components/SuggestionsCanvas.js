@@ -37,6 +37,14 @@ const SuggestionsCanvas = (
   }
 
   function drawTilesOnCanvas(context, tiles, gridConfig, fillStyle){
+    // Clear Canvas
+    context.clearRect(
+      0, 
+      0, 
+      width, 
+      height
+      );
+      
     console.log('drawing', tiles.length, 'tiles')
 		for (let i = 0; i < tiles.length; i++) {
 			let tile = tiles[i];
@@ -45,25 +53,6 @@ const SuggestionsCanvas = (
 			}
 		}
 	};
-
-  React.useEffect(() => {
-    let exampleSuggestions = [
-    {
-      x: 5,
-      y: 5,
-      size: 1,
-      color: 'green'
-    },
-    {
-      x: 6,
-      y: 5,
-      size: 1,
-      color: 'green'
-    }];
-
-    setSuggestionTiles(exampleSuggestions);
-
-  }, [tiles]);
 
   React.useEffect(() => {
     if (canvasRef.current) {

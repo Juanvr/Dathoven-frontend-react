@@ -6,7 +6,6 @@ import metronome from '../assets/images/metronome.png';
 const Slider = ({currentTempo, handleTempoChange}) => {
   return (
     <div id="tempoControlContainer">
-        
         <div className="sliderContainer">
           <input 
             className="slider"
