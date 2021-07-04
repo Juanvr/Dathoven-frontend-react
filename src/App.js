@@ -4,7 +4,7 @@ import * as Tone from 'tone';
 import * as Notes from './utils/Notes'
 import * as Sound from './utils/Sound'
 import * as TileOperations from './utils/TileOperations'
-import * as Predictions from './utils/Predictions'
+import * as Predictions from './utils/Predictions_with_time'
 
 import Play from './components/Play'
 import Pause from './components/Pause'
@@ -18,8 +18,9 @@ import SuggestionsCanvas from './components/SuggestionsCanvas'
 
 import * as tf from '@tensorflow/tfjs';
 
+
 const url = {
-  model: "https://dathoven-model.s3.eu-west-3.amazonaws.com/Model/model.json"
+  model: "https://dathoven-model.s3.eu-west-3.amazonaws.com/Model_with_tracks/model.json"
   // metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
   };
 
@@ -39,15 +40,39 @@ let melodyPlayer = new Tone.PolySynth(Tone.Synth).set({
 });
 
 function App() {  
-
-  let number_to_interval = {};
-
-  for (let i = 0; i < 100; i++){
-    // interval_to_number[i] = i
-    // interval_to_number[-i] = 100 + i
-    number_to_interval[i] = i
-    number_to_interval[100+i] = -i
-  }
+    // Dictionary interval
+    let number_to_interval = {};
+    let interval_to_number = {};
+  
+    for (let i = 0; i < 100; i++){
+      interval_to_number[i] = i
+      interval_to_number[-i] = 100 + i
+      number_to_interval[i] = i
+      number_to_interval[100+i] = -i
+    }
+  
+    let duration_to_number = {}
+    let number_to_duration  = {}
+    
+    // Dictionary duration and offset
+    let count=0
+    let duration = 0
+    while(duration <= 20){
+      number_to_duration[count] = duration
+      duration_to_number[duration] = count
+      count+=1
+      duration+=0.25
+    }
+    
+    duration = 0
+    while (duration <= 20){
+      if (duration_to_number[duration]){
+          number_to_duration[count] = duration
+          duration_to_number[duration] = count
+          count+=1
+      }
+      duration += 1/3;
+    }
 
   //React Hook
   const [metadata, setMetadata] = React.useState();
@@ -63,8 +88,6 @@ function App() {
     }
 
   },[]);
-
-
   
   // We will use always the same synth
   const synthRef = React.useRef(melodyPlayer.toDestination()); 
@@ -217,6 +240,28 @@ function App() {
     return intervals;
 
   };
+  const fromTilesToIntervalsWithTime = (tiles, time_to_number, interval_to_number) => {
+
+    let intervalsWithTime = [];
+    for (let i = 0; i<tiles.length - 1; i++){
+      let firstTile = tiles[i];
+      let secondTile = tiles[i+1]
+
+      let offset = secondTile.x - firstTile.x;
+      let interval = secondTile.y - firstTile.y; 
+      let duration = secondTile.size * 2;
+
+      interval = -interval; // Canvas higher notes are lower in number
+
+      let intervalWithTime = [time_to_number[offset], interval_to_number[interval], time_to_number[duration]];
+
+
+      intervalsWithTime = [...intervalsWithTime, intervalWithTime]; 
+
+    }
+    return intervalsWithTime;
+
+  };
 
   const handleLightBulbClick = (e) => {
     console.log(model);
@@ -240,7 +285,7 @@ function App() {
     for (let i = lastX + 1; i < config.gridWidth; i++){
       console.log("predict");
 
-      let prediction = Predictions.getNextIntervalPrediction(intervals, 30, model);
+      let prediction = Predictions.getNextIntervalPrediction(intervals, 10, model);
 
       let sorted_indexes = Predictions.argsortDesc(prediction);
 
@@ -290,6 +335,90 @@ function App() {
     }
   }
 
+
+
+
+  const handleLightBulbClickWithTime = (e) => {
+    console.log(model);
+    console.log(model.summary());
+
+    console.log(tiles);
+
+    // let intervals = fromTilesToIntervals(tiles);
+    let intervals = fromTilesToIntervalsWithTime(tiles, duration_to_number, interval_to_number);
+
+    console.log("map", tiles.map( tile => tile.x));
+    console.log("map", Math.max(...tiles.map( tile => tile.x)));
+
+
+    let lastX = Math.max(...tiles.map( tile => tile.x));
+    let lastY = tiles[tiles.length - 1].y;
+
+    let suggestion = [];
+    console.log("for", lastX, config.gridWidth);
+
+    
+    for (let i = lastX + 1; i < config.gridWidth; i++){
+      console.log("predict");
+
+      let prediction = Predictions.getNextIntervalPrediction(intervals, 10, model);
+
+      console.log("predictions!", prediction[0], prediction[1], prediction[2])
+
+      let sorted_indexes_offset = Predictions.argsortDesc(prediction[0]);
+      let sorted_indexes_interval = Predictions.argsortDesc(prediction[1]);
+      let sorted_indexes_duration = Predictions.argsortDesc(prediction[2]);
+
+      let sortedOffsets = sorted_indexes_offset.map(index => number_to_duration[index]);
+      let sortedIntervals = sorted_indexes_interval.map(index => number_to_interval[index]);
+      let sortedDurations = sorted_indexes_duration.map(index => number_to_duration[index]);
+
+      console.log("sortedIntervals", sortedIntervals);
+
+      let maxValidInterval = lastY;
+      console.log("maxValidInterval", maxValidInterval);
+
+      let minValidInterval = -(config.gridHeight - 1 - lastY);
+      console.log("minValidInterval", minValidInterval);
+
+
+
+      let validPredictedIntervals = sortedIntervals.filter( interval => interval <= maxValidInterval && interval >= minValidInterval);
+
+      console.log("validPredictedIntervals", validPredictedIntervals);
+
+      let randomness = 3;
+
+      let randint = Math.floor(Math.random() * randomness);
+
+      let predictedInterval = validPredictedIntervals[randint];
+      let predictedOffset = sortedOffsets[randint];
+      let predictedDuration = sortedDurations[randint];
+
+      console.log("predictedInterval", predictedInterval, predictedOffset, Math.floor(predictedDuration / 0.5));
+
+      let newY = lastY - predictedInterval; // intervals in canvas and in model are reversed
+
+      let newSuggestionTile = 
+      {
+        x: Math.max(i,Math.ceil(i+predictedOffset/0.5)),
+        y: newY,
+        size: Math.max(1,Math.ceil(predictedDuration/0.5)),
+        color: '#edb738'
+      };
+      i = newSuggestionTile.x;
+      
+      console.log("suggestionTile", newSuggestionTile);
+      
+      lastY = newY;
+      
+      suggestion = [...suggestion, newSuggestionTile];
+      setSuggestionTiles(suggestion);
+
+      intervals = [...intervals, [predictedOffset, predictedInterval, predictedDuration]];
+    }
+  }
+
   function handleMouseUp(e) {
     setMouseDown(false);
     setPreviousTile({});
@@ -311,7 +440,7 @@ function App() {
         x: gridCoordinatesOfCurrentTile.x,
         y: gridCoordinatesOfCurrentTile.y,
         size: 1,
-        color: 'blue'
+        color: 'white'
       };
   
       let tileInSameColumn = newTiles.find( tile => TileOperations.sameColumnTiles(tile, newTilePosition));
@@ -336,7 +465,7 @@ function App() {
         x: Math.min(gridCoordinatesOfCurrentTile.x, previousTile.x),
         y: gridCoordinatesOfCurrentTile.y,
         size: previousTile.size + growing,
-        color: 'blue'
+        color: 'white'
       };
       
       newTiles = newTiles.concat(newTile);
@@ -452,7 +581,7 @@ function App() {
           {playing? <Pause onPlayerClick={() => handlePlayerClick(tempo)} /> : <Play onPlayerClick={() => handlePlayerClick(tempo)} />}
         </div>
         <div className="lightBulbContainer">
-          <LightBulb onLightBulbClick={handleLightBulbClick} enabled={suggestionEnabled}/>
+          <LightBulb onLightBulbClick={handleLightBulbClickWithTime} enabled={suggestionEnabled}/>
         </div>
         
         <Slider currentTempo={tempo} handleTempoChange={handleTempoChange}/>

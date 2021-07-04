@@ -2,6 +2,7 @@ import * as tf from '@tensorflow/tfjs';
 
 let Predictions = {}
 
+
 export async function loadModel(url, setModel) {
   try {
     console.log('json', url.model);
@@ -21,6 +22,7 @@ export async function loadMetadata(url, setMetadata) {
   }}
 
 export function argsortDesc(array){
+  console.log('argsortDesc', array);
   return array                              // [10, 20, 30, 5]
     .map( (item, index) => [item, index])   // [[10, 0], [20, 1], [30, 2], [5, 3]]
     .sort( (a, b) => b[0] - a[0] )          // [[30, 2], [20, 1], [10, 0], [5, 3]]
@@ -30,7 +32,7 @@ export function argsortDesc(array){
 function prePadSequence( sequence, maxlen ){
   let resultSequence = [...sequence];
   for (let i = 0; i < maxlen - sequence.length; i++){
-    resultSequence.unshift(0);
+    resultSequence.unshift([0,0,0]);
   }
   return resultSequence;
 }
@@ -47,15 +49,24 @@ function sample(predictions, n){
 }
 
 export function getNextIntervalPrediction(seq, seq_length, model){
+  console.log('getNextIntervalPrediction');
   let input_sequence = seq.slice(-seq_length);
   let x = prePadSequence(input_sequence, seq_length);
-  let tensor = tf.tensor2d([x]);
 
+  console.log('x', x);
+  let tensor = tf.tensor3d([x]);
+
+  console.log('tensor', tensor);
   let predictionTensor = model.predict(tensor);
 
-  let prediction = predictionTensor.arraySync();
+  console.log('predictionTensor', predictionTensor);
+  let predictionOffset = predictionTensor[0].arraySync();
+  let predictionInterval = predictionTensor[1].arraySync();
+  let predictionDuration = predictionTensor[2].arraySync();
 
-  return prediction[0];
+  console.log('PREDICTION[0]', predictionOffset[0],predictionInterval[0],predictionDuration[0]);
+
+  return [predictionOffset[0], predictionInterval[0], predictionDuration[0]];
 
 }
 
